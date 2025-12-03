@@ -4,6 +4,7 @@ from .. import models, schemas, oauth
 from ..database import get_db
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from sqlalchemy import func
 
 router = APIRouter(
     prefix='/posts',
@@ -11,7 +12,7 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=List[schemas.Post])
+@router.get("/", response_model=List[schemas.PostOut])
 def get_posts(db: Session = Depends(get_db), 
               current_user: int = 
                  Depends(oauth.get_current_user),
@@ -23,14 +24,20 @@ def get_posts(db: Session = Depends(get_db),
     # print(posts)
     # ------------------------------------------
     # posts = db.query(models.Post).filter(models.Post.owner_id == current_user.id).all()
-    print(limit)
     posts = (
     db.query(models.Post).filter(models.Post.title.contains(search))
     .limit(limit)
     .offset(skip)
     .all()
     )
-    return posts
+
+    results = db.query(models.Post, func.count(models.Vote.post_id).label("votes")).join(models.Vote, 
+                                         models.Vote.post_id == models.Post.id,
+                                         isouter=True).group_by(
+                                             models.Post.id
+                                         ).limit(limit).all()
+    
+    return results  
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.Post)
@@ -53,14 +60,20 @@ def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db), curren
     return new_post
 
 
-@router.get("/{id}", response_model=schemas.Post)
+@router.get("/{id}", response_model=schemas.PostOut)
 def get_post(id: int, db: Session = Depends(get_db), 
              current_user: int = 
                  Depends(oauth.get_current_user)):
     # cursor.execute("""SELECT * FROM posts WHERE id = %s""", (str(id),))
     # post = cursor.fetchone()
     # -----------------------------------------------------
-    post = db.query(models.Post).filter(models.Post.id == id).first()
+    # post = db.query(models.Post).filter(models.Post.id == id).first()
+
+    post = db.query(models.Post, func.count(models.Vote.post_id).label("votes")).join(models.Vote, 
+                                         models.Vote.post_id == models.Post.id,
+                                         isouter=True).group_by(
+                                             models.Post.id
+                                         ).filter(models.Post.id == id).first()
     
     # if post.owner_id != current_user.id:
     #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, 

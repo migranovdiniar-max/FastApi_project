@@ -17,6 +17,12 @@ def create_vote(vote: schemas.Vote,
                 db: Session = Depends(get_db), 
                 current_user: int = Depends(oauth.get_current_user)):
 
+    post = db.query(models.Post).filter(models.Post.id == vote.post_id).first()
+    if not post:
+        raise HTTPException(status_code=
+                            status.HTTP_404_NOT_FOUND, 
+                            detail=f"Post with id: {vote.post_id} does not exist")
+
     vote_query = db.query(models.Vote).filter(models.Vote.post_id == vote.post_id, 
                                       models.Vote.user_id == current_user.id)
     found_vote = vote_query.first()

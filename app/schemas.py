@@ -34,6 +34,13 @@ class Post(PostBase):
     }
 
 
+class PostOut(BaseModel):
+    Post: Post
+    votes: int = 0
+
+    model_config = {"from_attributes": True}
+
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6, max_length=64)
